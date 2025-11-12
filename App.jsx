@@ -1,75 +1,83 @@
-import React, { useState } from 'react';
-import './index.css';
-import { cognitivePoints } from "./points";
+import React, { useEffect, useRef, useState } from "react";
+import "./index.css";
+import { frameworkPoints } from "./points";
 
 export default function App() {
-  const [screen, setScreen] = useState('home');
-  const [expanded, setExpanded] = useState(null);
+  const [screen, setScreen] = useState("home");
+  const [subscreen, setSubscreen] = useState(null);
   const [detail, setDetail] = useState(null);
   const [filter, setFilter] = useState({ ai: false, age: 13 });
   const [showFilters, setShowFilters] = useState(false);
+  const filterWrapRef = useRef(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [dragProgress, setDragProgress] = useState(0);
+  const dragRef = useRef({ startX: 0, startProgress: 0, width: 300, gap: 8 });
+  const metricsRef = useRef({ width: 300, gap: 8 });
 
-  // === Top-right controls (HOME + FILTER) ===
-  const TopRightControls = () => (
-  <div style={{
-    position: 'fixed',
-    top: 20,
-    right: 20,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 8,
-    alignItems: 'flex-end',
-    zIndex: 1000
-  }}>
-    {/* Home button */}
-    <button
-      className="home-btn"
-      onClick={() => {
-        setScreen('home');
-        setExpanded(null);
-        setDetail(null);
-      }}
-      style={{ position: 'relative', marginBottom: 8 }}
-    >
-      Home
-    </button>
+  useEffect(() => {
+    const measure = () => {
+      const root = document.documentElement;
+      const readVarPx = (name) => {
+        const v = getComputedStyle(root).getPropertyValue(name).trim();
+        const m = v.match(/([0-9.]+)/);
+        return m ? parseFloat(m[1]) : 0;
+      };
+      metricsRef.current.width = readVarPx("--sidebar-width") || 300;
+      metricsRef.current.gap = readVarPx("--sidebar-gap") || 8;
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
 
-    {/* Filter button using a separate class to avoid overlapping */}
-    <button
-      className="filter-btn"
-      onClick={() => setShowFilters(prev => !prev)}
-    >
-      FILTER
-    </button>
+  // Shared data mapping across UI
+  const dataMap = {
+    cognitive: frameworkPoints?.cognitive || {},
+    socio: frameworkPoints?.socioEmotional || {},
+    physical: frameworkPoints?.physical || {},
+  };
 
-    {showFilters && (
-      <div style={{
-        backgroundColor: 'white',
-        padding: '12px',
-        borderRadius: '8px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        minWidth: '200px',
-        marginTop: 8
-      }}>
-        <FilterControls />
-      </div>
-    )}
-  </div>
-);
+  const prettyMain = (key) => {
+    if (key === "socio") return "Socio-Emotional";
+    return key.charAt(0).toUpperCase() + key.slice(1);
+  };
 
+  const prettySecond = (main, key) => {
+    if (main === "cognitive") {
+      if (key === "structure") return "Structure & Executing Ideas";
+      if (key === "idea") return "Enabling Idea Generation";
+    }
+    // Fallback: Title case and spacing before capitals
+    return key
+      .replace(/([A-Z])/g, " $1")
+      .replace(/^\w/, (c) => c.toUpperCase());
+  };
 
-  // === Filter Controls ===
+  const parseAgeRange = (ageStr) => {
+    if (!ageStr) return [0, 100];
+    const parts = ageStr
+      .replace(/\s+/g, "")
+      .split("-")
+      .map((n) => parseInt(n, 10))
+      .filter((n) => !isNaN(n));
+    if (parts.length === 2) return parts;
+    if (parts.length === 1) return [parts[0], parts[0]];
+    return [0, 100];
+  };
+
+  /** === Filter popup === */
   const FilterControls = () => (
-    <div className="filters-controls" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className="filters-controls sleek-popup glass">
       <label>
         <input
           type="checkbox"
           checked={filter.ai}
-          onChange={() => setFilter(prev => ({ ...prev, ai: !prev.ai }))}
-        />{' '}
+          onChange={() => setFilter((prev) => ({ ...prev, ai: !prev.ai }))}
+        />
         AI-related
       </label>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <label>
         Age: {filter.age}
         <input
           type="range"
@@ -77,194 +85,366 @@ export default function App() {
           max="13"
           step="1"
           value={filter.age}
-          onChange={(e) => setFilter(prev => ({ ...prev, age: parseInt(e.target.value, 10) }))}
-          style={{ flex: 1, transition: 'all 0.3s ease' }}
+          onChange={(e) =>
+            setFilter((prev) => ({
+              ...prev,
+              age: parseInt(e.target.value, 10),
+            }))
+          }
         />
       </label>
+      <div className="mini-actions">
+        <button
+          className="btn sleek small"
+          onClick={() => setFilter({ ai: false, age: 13 })}
+        >
+          Reset
+        </button>
+        <button className="btn sleek small" onClick={() => setShowFilters(false)}>
+          Close
+        </button>
+      </div>
     </div>
   );
 
-  // === Side Tab ===
-  const SideTab = ({ current }) => {
-    const topics = [
-      { id: 'cognitive', label: 'Cognitive', color: 'blue' },
-      { id: 'socio', label: 'Socio-Emotional', color: 'purple' },
-      { id: 'physical', label: 'Physical', color: 'orange' }
-    ];
-    const active = topics.find(t => t.id === current) || topics[0];
-    return (
-      <div className={`side-tab ${active.color}`}>
-        {topics.filter(t => t.id !== current).map(t => (
-          <button
-            key={t.id}
-            onClick={() => {
-              setScreen(t.id);
-              setExpanded(null);
-              setDetail(null);
-            }}
-          >
-            {t.label}
-          </button>
-        ))}
+  useEffect(() => {
+    const onDocClick = (e) => {
+      if (!showFilters) return;
+      if (filterWrapRef.current && !filterWrapRef.current.contains(e.target)) {
+        setShowFilters(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [showFilters]);
+
+  /** === Sidebar (hover-expand, layered navigation) === */
+  const Sidebar = () => {
+    // Uses shared dataMap and pretty label helpers
+
+    const onSelectMain = (target) => {
+      setScreen(target);
+      setSubscreen(null);
+      setDetail(null);
+    };
+
+    const onSelectSecond = (key) => {
+      setSubscreen(key);
+      setDetail(null);
+    };
+
+    const onSelectFeature = (feat) => {
+      setDetail(feat);
+    };
+
+    const renderMainLayer = () => (
+      <div className="sidebar-section">
+        <div className="sidebar-header">Themes</div>
+        <button
+          className={`nav-btn theme cognitive ${screen === "cognitive" ? "active" : ""}`}
+          onClick={() => onSelectMain("cognitive")}
+        >
+          Cognitive
+        </button>
+        <button
+          className={`nav-btn theme socio ${screen === "socio" ? "active" : ""}`}
+          onClick={() => onSelectMain("socio")}
+        >
+          Socio-Emotional
+        </button>
+        <button
+          className={`nav-btn theme physical ${screen === "physical" ? "active" : ""}`}
+          onClick={() => onSelectMain("physical")}
+        >
+          Physical
+        </button>
       </div>
+    );
+
+    const renderSecondLayer = () => {
+      const themeObj = dataMap[screen];
+      if (!themeObj) return null;
+      const secondKeys = Object.keys(themeObj);
+      return (
+        <div className="sidebar-section">
+          <div className="sidebar-header">{prettyMain(screen)}</div>
+          {secondKeys.map((k) => (
+            <button
+              key={k}
+              className={`nav-btn ${subscreen === k ? "active" : ""}`}
+              onClick={() => onSelectSecond(k)}
+            >
+              {prettySecond(screen, k)}
+            </button>
+          ))}
+        </div>
+      );
+    };
+
+    const renderFeatureLayer = () => {
+      const themeObj = dataMap[screen];
+      if (!themeObj || !subscreen) return null;
+      const featureGroups = themeObj[subscreen];
+      const features = Object.keys(featureGroups).map((k) => featureGroups[k]);
+      return (
+        <div className="sidebar-section">
+          <div className="sidebar-header">{prettySecond(screen, subscreen)}</div>
+          {features.map((feat, i) => (
+            <button key={i} className="nav-btn" onClick={() => onSelectFeature(feat)}>
+              {feat.title}
+            </button>
+          ))}
+        </div>
+      );
+    };
+
+    const onBookmarkMouseDown = (e) => {
+      // Prepare drag with current CSS vars
+      const width = metricsRef.current.width;
+      const gap = metricsRef.current.gap;
+      dragRef.current = {
+        startX: e.clientX,
+        startProgress: sidebarOpen ? width + gap : 0,
+        width,
+        gap,
+      };
+      e.preventDefault();
+      setDragging(true);
+      setDragProgress(dragRef.current.startProgress);
+      const onMove = (ev) => {
+        const dx = ev.clientX - dragRef.current.startX;
+        const max = dragRef.current.width + dragRef.current.gap;
+        let next = dragRef.current.startProgress + dx;
+        if (next < 0) next = 0;
+        if (next > max) next = max;
+        setDragProgress(next);
+      };
+      const onUp = () => {
+        const max = dragRef.current.width + dragRef.current.gap;
+        const shouldOpen = dragProgress > max / 2;
+        setSidebarOpen(shouldOpen);
+        setDragging(false);
+        setDragProgress(0);
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    };
+
+    const currentProgress = dragging
+      ? dragProgress
+      : sidebarOpen
+      ? metricsRef.current.width + metricsRef.current.gap
+      : 0;
+
+    return (
+      <>
+        {/* Bookmark toggle at center-left */}
+        {screen !== "home" && (
+          <button
+            className={`sidebar-bookmark theme-${screen} ${sidebarOpen ? "open" : ""}`}
+            onMouseDown={onBookmarkMouseDown}
+            onClick={() => { if (!dragging) setSidebarOpen((p) => !p); }}
+            aria-label="Toggle menu"
+            aria-expanded={sidebarOpen}
+            style={{ ['--sidebar-progress']: `${currentProgress}px` }}
+          >
+            {sidebarOpen ? "×" : "☰"}
+          </button>
+        )}
+        <div
+          className={`sidebar hover-expand theme-${screen} ${sidebarOpen ? "open" : ""}`}
+          style={{ ['--sidebar-progress']: `${currentProgress}px` }}
+        >
+          {renderMainLayer()}
+          {screen && screen !== "home" && renderSecondLayer()}
+          {screen && screen !== "home" && subscreen && renderFeatureLayer()}
+        </div>
+      </>
     );
   };
 
-  // === Back Button ===
-  const BackBtn = () => (
-    <button className="btn blue" style={{ marginTop: 16 }} onClick={() => setDetail(null)}>
-      Back
-    </button>
+  /** === Theme info bubble next to main title === */
+  const themeDescriptions = {
+    cognitive:
+      "Recommendations that support children's intellectual progress during creative activities.",
+    socio:
+      "Recommendations that support children's social and emotional growth during creative activities.",
+    physical:
+      "Recommendations that support children's bodily engagement and sensory-motor exploration during creative activities.",
+  };
+
+  const ThemeInfo = ({ which }) => {
+    const [open, setOpen] = useState(false);
+    const wrapRef = useRef(null);
+    useEffect(() => {
+      const onDoc = (e) => {
+        if (!open) return;
+        if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+      };
+      document.addEventListener("mousedown", onDoc);
+      return () => document.removeEventListener("mousedown", onDoc);
+    }, [open]);
+
+    if (!which) return null;
+    return (
+      <span className="theme-info-wrap" ref={wrapRef}>
+        <button className="theme-info-btn" onClick={() => setOpen((p) => !p)} aria-expanded={open}>
+          i
+        </button>
+        <span className={`theme-info-bubble ${open ? "open" : ""}`}>
+          <strong>{prettyMain(which)}</strong>
+          <div className="theme-info-text">{themeDescriptions[which]}</div>
+        </span>
+      </span>
+    );
+  };
+
+  /** === Top Controls (only show Filter if in detail) === */
+  const TopControls = () => (
+    <div className="top-right-controls" ref={filterWrapRef}>
+      {detail && (
+        <button
+          className="control-btn"
+          onClick={() => setShowFilters((p) => !p)}
+        >
+          Filter
+        </button>
+      )}
+      {showFilters && <FilterControls />}
+    </div>
   );
 
-  const parseAgeRange = (ageStr) => {
-    if (!ageStr) return [0, 100];
-    const cleaned = String(ageStr).replace(/\s+/g, '');
-    const parts = cleaned.split('-').map(n => parseInt(n, 10)).filter(n => !Number.isNaN(n));
-    if (parts.length === 2) return [parts[0], parts[1]];
-    if (parts.length === 1) return [parts[0], parts[0]];
-    return [0, 100];
-  };
-
-  // === Detail Page ===
+  /** === Detail Screen === */
   if (detail) {
-    let filteredPoints = Array.isArray(detail.points) ? detail.points : [];
-
-    if (filter.ai) filteredPoints = filteredPoints.filter(p => Boolean(p.ai));
-    if (filter.age < 13) filteredPoints = filteredPoints.filter(p => {
-      const [min] = parseAgeRange(p.age);
-      return min <= filter.age;
-    });
+    let filtered = Array.isArray(detail.points) ? detail.points : [];
+    if (filter.ai) filtered = filtered.filter((p) => p.ai);
+    if (filter.age < 13)
+      filtered = filtered.filter((p) => {
+        const [min] = parseAgeRange(p.age);
+        return min <= filter.age;
+      });
 
     return (
-      <div className={`container ${screen}`}>
-        <TopRightControls />
-
+      <div className={`container theme-${screen}`}>
+        <TopControls />
         <h2>{detail.title}</h2>
+        {filtered.length ? (
+          <ul className="detail-list">
+            {filtered.map((p, i) => (
+              <li key={i} className="detail-item">
+                <p>{p.text}</p>
+                <small>
+                  Age: {p.age} {p.ai && <strong>(AI)</strong>}
+                </small>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No results match filters.</p>
+        )}
+        <button className="btn sleek" onClick={() => setDetail(null)}>
+          ← Back
+        </button>
+        <Sidebar />
+      </div>
+    );
+  }
 
-        <ul className="detail-list" style={{ padding: 0, listStyle: 'none' }}>
-          {filteredPoints.length > 0 ? filteredPoints.map((p, i) => (
-            <li
+  /** === Subtheme Screen (shows features dynamically) === */
+  if (subscreen) {
+    const themeObj = dataMap[screen];
+    const theme = themeObj ? themeObj[subscreen] : null;
+    if (!theme) return null;
+
+    const subtopics = Object.keys(theme).map((key) => theme[key]);
+
+    return (
+      <div className={`container theme-${screen}`}>
+        <TopControls />
+        <h2>{prettySecond(screen, subscreen)}</h2>
+        <div className="features-container big">
+          {subtopics.map((feat, i) => (
+            <button
               key={i}
-              className="detail-item"
-              style={{
-                marginBottom: 10,
-                opacity: 1,
-                transition: 'opacity 0.3s, transform 0.3s'
-              }}
+              className="feature-btn large"
+              onClick={() => setDetail(feat)}
             >
-              <div className="point-text">{p.text}</div>
-              <div className="meta" style={{ fontSize: 12, opacity: 0.8 }}>
-                Age: {p.age ?? 'n/a'} {p.ai && <span style={{ marginLeft: 8, fontWeight: 600 }}>(AI)</span>}
-              </div>
-            </li>
-          )) : (
-            <p className="no-results">No points match the selected filters.</p>
-          )}
-        </ul>
-
-        <BackBtn />
-        <SideTab current={screen} />
-      </div>
-    );
-  }
-
-  // === HOME ===
-  if (screen === 'home') {
-    return (
-      <div className="container">
-        <TopRightControls />
-        <h1 className="title">CSTDRC Framework</h1>
-        <p className="subtitle">Creative Support Technology Design Recommendations for Children</p>
-        <div className="button-row">
-          <button className="btn large blue" onClick={() => setScreen('cognitive')}>Cognitive</button>
-          <button className="btn large purple" onClick={() => setScreen('socio')}>Socio-Emotional</button>
-          <button className="btn large orange" onClick={() => setScreen('physical')}>Physical</button>
-        </div>
-        <SideTab current="home" />
-      </div>
-    );
-  }
-
-  // === Cognitive Screen ===
-  if (screen === 'cognitive') {
-    return (
-      <div className={`container cognitive`}>
-        <TopRightControls />
-        <h2>Cognitive</h2>
-        <div className="card-row vertical-tree">
-
-          {/* Structure branch */}
-          <div className="tree-branch">
-            <button
-              className="card blue"
-              onClick={() => setExpanded(expanded === 'structure' ? null : 'structure')}
-            >
-              <h3>Structure and Executing Ideas</h3>
+              {feat.title}
             </button>
-            <div className={`tree-children ${expanded === 'structure' ? 'open' : ''}`}>
-              <button
-                className="sub-btn blue"
-                onClick={() => setDetail(cognitivePoints.structure.scaffolding)}
-              >
-                {cognitivePoints.structure.scaffolding.title}
-              </button>
-              <button
-                className="sub-btn blue"
-                onClick={() => setDetail(cognitivePoints.structure.workflow)}
-              >
-                {cognitivePoints.structure.workflow.title}
-              </button>
-              <button
-                className="sub-btn blue"
-                onClick={() => setDetail(cognitivePoints.structure.tutorial)}
-              >
-                {cognitivePoints.structure.tutorial.title}
-              </button>
-            </div>
-          </div>
-
-          {/* Idea branch */}
-          <div className="tree-branch">
-            <button
-              className="card blue"
-              onClick={() => setExpanded(expanded === 'idea' ? null : 'idea')}
-            >
-              <h3>Enabling Idea Generation</h3>
-            </button>
-            <div className={`tree-children ${expanded === 'idea' ? 'open' : ''}`}>
-              <button
-                className="sub-btn blue"
-                onClick={() => setDetail(cognitivePoints.idea.ideation)}
-              >
-                {cognitivePoints.idea.ideation.title}
-              </button>
-              <button
-                className="sub-btn blue"
-                onClick={() => setDetail(cognitivePoints.idea.questioning)}
-              >
-                {cognitivePoints.idea.questioning.title}
-              </button>
-            </div>
-          </div>
+          ))}
         </div>
-
-        <SideTab current="cognitive" />
+        <button className="btn sleek" onClick={() => setSubscreen(null)}>
+          ← Back
+        </button>
+        <Sidebar />
       </div>
     );
   }
 
-  // Placeholder for other topics
-  if (screen === 'socio' || screen === 'physical') {
+  /** === Cognitive Screen === */
+  if (screen === "cognitive") {
     return (
-      <div className={`container ${screen}`}>
-        <TopRightControls />
-        <h2>{screen === 'socio' ? 'Socio-Emotional' : 'Physical'}</h2>
-        <p>Content for this topic hasn't been added yet.</p>
-        <SideTab current={screen} />
+      <div className="container theme-cognitive">
+        <TopControls />
+        <div className="title-row">
+          <h2>Cognitive</h2>
+          <ThemeInfo which="cognitive" />
+        </div>
+        <p>Choose a subtheme to explore features and recommendations.</p>
+        <div className="subtheme-grid">
+          {Object.keys(dataMap.cognitive).map((k) => (
+            <button key={k} className="subtheme-btn cognitive" onClick={() => setSubscreen(k)}>
+              {prettySecond("cognitive", k)}
+            </button>
+          ))}
+        </div>
+        <Sidebar />
       </div>
     );
   }
 
-  return null;
+  /** === Socio / Physical Screens === */
+  if (screen === "socio" || screen === "physical") {
+    return (
+      <div className={`container theme-${screen}`}>
+        <TopControls />
+        <div className="title-row">
+          <h2>{screen === "socio" ? "Socio-Emotional" : "Physical"}</h2>
+          <ThemeInfo which={screen} />
+        </div>
+        <p>Choose a subtheme to explore features and recommendations.</p>
+        <div className="subtheme-grid">
+          {Object.keys(dataMap[screen]).map((k) => (
+            <button key={k} className={`subtheme-btn ${screen}`} onClick={() => setSubscreen(k)}>
+              {prettySecond(screen, k)}
+            </button>
+          ))}
+        </div>
+        <Sidebar />
+      </div>
+    );
+  }
+
+  /** === Home === */
+  return (
+    <div className="container home-container">
+      <h1 className="title sleek-title">CSTDRC Framework</h1>
+      <p className="subtitle">
+        Creative Support Technology Design Recommendations for Children
+      </p>
+      <div className="home-actions">
+        <button className="home-btn cognitive" onClick={() => setScreen("cognitive")}>
+          Cognitive
+        </button>
+        <button className="home-btn socio" onClick={() => setScreen("socio")}>
+          Socio-Emotional
+        </button>
+        <button className="home-btn physical" onClick={() => setScreen("physical")}>
+          Physical
+        </button>
+      </div>
+    </div>
+  );
 }
