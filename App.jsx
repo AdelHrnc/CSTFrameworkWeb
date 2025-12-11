@@ -9,27 +9,7 @@ export default function App() {
   const [filter, setFilter] = useState({ ai: false, age: 13 });
   const [showFilters, setShowFilters] = useState(false);
   const filterWrapRef = useRef(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [dragging, setDragging] = useState(false);
-  const [dragProgress, setDragProgress] = useState(0);
-  const dragRef = useRef({ startX: 0, startProgress: 0, width: 300, gap: 8 });
-  const metricsRef = useRef({ width: 300, gap: 8 });
-
-  useEffect(() => {
-    const measure = () => {
-      const root = document.documentElement;
-      const readVarPx = (name) => {
-        const v = getComputedStyle(root).getPropertyValue(name).trim();
-        const m = v.match(/([0-9.]+)/);
-        return m ? parseFloat(m[1]) : 0;
-      };
-      metricsRef.current.width = readVarPx("--sidebar-width") || 300;
-      metricsRef.current.gap = readVarPx("--sidebar-gap") || 8;
-    };
-    measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, []);
+  const activeTheme = screen === "home" ? "cognitive" : screen;
 
   // Shared data mapping across UI
   const dataMap = {
@@ -118,161 +98,25 @@ export default function App() {
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [showFilters]);
 
-  /** === Sidebar (hover-expand, layered navigation) === */
-  const Sidebar = () => {
-    // Uses shared dataMap and pretty label helpers
-
-    const onSelectMain = (target) => {
-      setScreen(target);
-      setSubscreen(null);
-      setDetail(null);
-    };
-
-    const onSelectSecond = (key) => {
-      setSubscreen(key);
-      setDetail(null);
-    };
-
-    const onSelectFeature = (feat) => {
-      setDetail(feat);
-    };
-
-    const renderMainLayer = () => (
-      <div className="sidebar-section">
-        <div className="sidebar-header">Themes</div>
-        <button
-          className={`nav-btn theme cognitive ${screen === "cognitive" ? "active" : ""}`}
-          onClick={() => onSelectMain("cognitive")}
-        >
-          Cognitive
-        </button>
-        <button
-          className={`nav-btn theme socio ${screen === "socio" ? "active" : ""}`}
-          onClick={() => onSelectMain("socio")}
-        >
-          Socio-Emotional
-        </button>
-        <button
-          className={`nav-btn theme physical ${screen === "physical" ? "active" : ""}`}
-          onClick={() => onSelectMain("physical")}
-        >
-          Physical
-        </button>
+  const Layout = ({ children, variant = "page" }) => (
+    <div className={`page-shell ${variant === "home" ? "home-shell" : ""} theme-${activeTheme}`}>
+      <div
+        className={`container ${variant === "home" ? "home-container" : ""} theme-${activeTheme}`}
+      >
+        {children}
       </div>
-    );
+    </div>
+  );
 
-    const renderSecondLayer = () => {
-      const themeObj = dataMap[screen];
-      if (!themeObj) return null;
-      const secondKeys = Object.keys(themeObj);
-      return (
-        <div className="sidebar-section">
-          <div className="sidebar-header">{prettyMain(screen)}</div>
-          {secondKeys.map((k) => (
-            <button
-              key={k}
-              className={`nav-btn ${subscreen === k ? "active" : ""}`}
-              onClick={() => onSelectSecond(k)}
-            >
-              {prettySecond(screen, k)}
-            </button>
-          ))}
-        </div>
-      );
-    };
-
-    const renderFeatureLayer = () => {
-      const themeObj = dataMap[screen];
-      if (!themeObj || !subscreen) return null;
-      const featureGroups = themeObj[subscreen];
-      const features = Object.keys(featureGroups).map((k) => featureGroups[k]);
-      return (
-        <div className="sidebar-section">
-          <div className="sidebar-header">{prettySecond(screen, subscreen)}</div>
-          {features.map((feat, i) => (
-            <button key={i} className="nav-btn" onClick={() => onSelectFeature(feat)}>
-              {feat.title}
-            </button>
-          ))}
-        </div>
-      );
-    };
-
-    const onBookmarkMouseDown = (e) => {
-      // Prepare drag with current CSS vars
-      const width = metricsRef.current.width;
-      const gap = metricsRef.current.gap;
-      dragRef.current = {
-        startX: e.clientX,
-        startProgress: sidebarOpen ? width + gap : 0,
-        width,
-        gap,
-      };
-      e.preventDefault();
-      setDragging(true);
-      setDragProgress(dragRef.current.startProgress);
-      const onMove = (ev) => {
-        const dx = ev.clientX - dragRef.current.startX;
-        const max = dragRef.current.width + dragRef.current.gap;
-        let next = dragRef.current.startProgress + dx;
-        if (next < 0) next = 0;
-        if (next > max) next = max;
-        setDragProgress(next);
-      };
-      const onUp = () => {
-        const max = dragRef.current.width + dragRef.current.gap;
-        const shouldOpen = dragProgress > max / 2;
-        setSidebarOpen(shouldOpen);
-        setDragging(false);
-        setDragProgress(0);
-        window.removeEventListener("mousemove", onMove);
-        window.removeEventListener("mouseup", onUp);
-      };
-      window.addEventListener("mousemove", onMove);
-      window.addEventListener("mouseup", onUp);
-    };
-
-    const currentProgress = dragging
-      ? dragProgress
-      : sidebarOpen
-      ? metricsRef.current.width + metricsRef.current.gap
-      : 0;
-
-    return (
-      <>
-        {/* Bookmark toggle at center-left */}
-        {screen !== "home" && (
-          <button
-            className={`sidebar-bookmark theme-${screen} ${sidebarOpen ? "open" : ""}`}
-            onMouseDown={onBookmarkMouseDown}
-            onClick={() => { if (!dragging) setSidebarOpen((p) => !p); }}
-            aria-label="Toggle menu"
-            aria-expanded={sidebarOpen}
-            style={{ ['--sidebar-progress']: `${currentProgress}px` }}
-          >
-            {sidebarOpen ? "×" : "☰"}
-          </button>
-        )}
-        <div
-          className={`sidebar hover-expand theme-${screen} ${sidebarOpen ? "open" : ""}`}
-          style={{ ['--sidebar-progress']: `${currentProgress}px` }}
-        >
-          {renderMainLayer()}
-          {screen && screen !== "home" && renderSecondLayer()}
-          {screen && screen !== "home" && subscreen && renderFeatureLayer()}
-        </div>
-      </>
-    );
-  };
 
   /** === Theme info bubble next to main title === */
   const themeDescriptions = {
     cognitive:
       "Recommendations that support children's intellectual progress during creative activities.",
     socio:
-      "Recommendations that support children's social and emotional growth during creative activities.",
+      "Recommendations that help to make the creativity experience more enjoyable and engaging for children.",
     physical:
-      "Recommendations that support children's bodily engagement and sensory-motor exploration during creative activities.",
+      "Recommendations that involve children's physical capabilities during creative activities.",
   };
 
   const ThemeInfo = ({ which }) => {
@@ -316,6 +160,40 @@ export default function App() {
     </div>
   );
 
+  /** === Breadcrumb tracker === */
+  const Breadcrumb = () => {
+    if (screen === "home") return null;
+    const segments = [];
+    if (screen) {
+      segments.push({
+        label: prettyMain(screen),
+      });
+    }
+    if (screen && subscreen) {
+      segments.push({
+        label: prettySecond(screen, subscreen),
+      });
+    }
+    if (screen && subscreen && detail) {
+      segments.push({
+        label: detail.title,
+      });
+    }
+    const lastIndex = segments.length - 1;
+    return (
+      <div className={`breadcrumb theme-${screen || "cognitive"}`}>
+        {segments.map((seg, idx) => (
+          <React.Fragment key={`${seg.label}-${idx}`}>
+            <span className={`crumb ${idx === lastIndex ? "active" : ""}`}>
+              {seg.label}
+            </span>
+            {idx !== lastIndex && <span className="crumb-sep">›</span>}
+          </React.Fragment>
+        ))}
+      </div>
+    );
+  };
+
   /** === Detail Screen === */
   if (detail) {
     let filtered = Array.isArray(detail.points) ? detail.points : [];
@@ -327,8 +205,9 @@ export default function App() {
       });
 
     return (
-      <div className={`container theme-${screen}`}>
+      <Layout>
         <TopControls />
+        <Breadcrumb />
         <h2>{detail.title}</h2>
         {filtered.length ? (
           <ul className="detail-list">
@@ -347,8 +226,7 @@ export default function App() {
         <button className="btn sleek" onClick={() => setDetail(null)}>
           ← Back
         </button>
-        <Sidebar />
-      </div>
+      </Layout>
     );
   }
 
@@ -361,8 +239,9 @@ export default function App() {
     const subtopics = Object.keys(theme).map((key) => theme[key]);
 
     return (
-      <div className={`container theme-${screen}`}>
+      <Layout>
         <TopControls />
+        <Breadcrumb />
         <h2>{prettySecond(screen, subscreen)}</h2>
         <div className="features-container big">
           {subtopics.map((feat, i) => (
@@ -378,16 +257,16 @@ export default function App() {
         <button className="btn sleek" onClick={() => setSubscreen(null)}>
           ← Back
         </button>
-        <Sidebar />
-      </div>
+      </Layout>
     );
   }
 
   /** === Cognitive Screen === */
   if (screen === "cognitive") {
     return (
-      <div className="container theme-cognitive">
+      <Layout>
         <TopControls />
+        <Breadcrumb />
         <div className="title-row">
           <h2>Cognitive</h2>
           <ThemeInfo which="cognitive" />
@@ -400,16 +279,16 @@ export default function App() {
             </button>
           ))}
         </div>
-        <Sidebar />
-      </div>
+      </Layout>
     );
   }
 
   /** === Socio / Physical Screens === */
   if (screen === "socio" || screen === "physical") {
     return (
-      <div className={`container theme-${screen}`}>
+      <Layout>
         <TopControls />
+        <Breadcrumb />
         <div className="title-row">
           <h2>{screen === "socio" ? "Socio-Emotional" : "Physical"}</h2>
           <ThemeInfo which={screen} />
@@ -422,14 +301,13 @@ export default function App() {
             </button>
           ))}
         </div>
-        <Sidebar />
-      </div>
+      </Layout>
     );
   }
 
   /** === Home === */
   return (
-    <div className="container home-container">
+    <Layout variant="home">
       <h1 className="title sleek-title">CSTDRC Framework</h1>
       <p className="subtitle">
         Creative Support Technology Design Recommendations for Children
@@ -445,6 +323,6 @@ export default function App() {
           Physical
         </button>
       </div>
-    </div>
+    </Layout>
   );
 }
