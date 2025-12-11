@@ -3,5 +3,6 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: '/cst-drc-web/',
+  // Use relative paths so build works on GitHub Pages at /<repo>/
+  base: './',
 })
