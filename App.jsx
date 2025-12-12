@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import "./index.css";
-import { frameworkPoints } from "./points";
+import { frameworkPoints } from "./FeatureDescriptions";
 
 export default function App() {
   const [screen, setScreen] = useState("home");
@@ -8,6 +8,7 @@ export default function App() {
   const [detail, setDetail] = useState(null);
   const [filter, setFilter] = useState({ ai: false, age: 13 });
   const [showFilters, setShowFilters] = useState(false);
+  const [bubbleOpen, setBubbleOpen] = useState(null);
   const filterWrapRef = useRef(null);
   const activeTheme = screen === "home" ? "cognitive" : screen;
 
@@ -160,6 +161,56 @@ export default function App() {
     </div>
   );
 
+  /** === Cross-theme bubbles (show two other themes) === */
+  const ThemeBubbles = ({ current }) => {
+    if (!["cognitive", "socio", "physical"].includes(current)) return null;
+    const others = ["cognitive", "socio", "physical"].filter((t) => t !== current);
+
+    const onSwitch = (nextTheme, sub = null) => {
+      setScreen(nextTheme);
+      setSubscreen(sub);
+      setDetail(null);
+      setBubbleOpen(null);
+    };
+
+    return (
+      <div className="theme-bubbles">
+        {others.map((theme, idx) => {
+          const side = idx === 0 ? "left" : "right";
+          const subthemes = Object.keys(dataMap[theme] || {});
+          const open = bubbleOpen === theme;
+          return (
+            <div key={theme} className={`theme-bubble ${side} theme-${theme} ${open ? "open" : ""}`}>
+              <button
+                className="bubble-pill"
+                onClick={() => setBubbleOpen((prev) => (prev === theme ? null : theme))}
+                aria-expanded={open}
+                aria-label={prettyMain(theme)}
+              >
+                <span className="bubble-label">{prettyMain(theme)}</span>
+                <span className="sr-only">{prettyMain(theme)}</span>
+              </button>
+              {open && (
+                <div className="bubble-panel glass">
+                  <button className="switch-btn" onClick={() => onSwitch(theme)}>
+                    Go to {prettyMain(theme)}
+                  </button>
+                  <div className="bubble-subthemes">
+                    {subthemes.map((st) => (
+                      <button key={st} className="sub-link" onClick={() => onSwitch(theme, st)}>
+                        {prettySecond(theme, st)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   /** === Breadcrumb tracker === */
   const Breadcrumb = () => {
     if (screen === "home") return null;
@@ -208,6 +259,7 @@ export default function App() {
       <Layout>
         <TopControls />
         <Breadcrumb />
+        <ThemeBubbles current={screen} />
         <h2>{detail.title}</h2>
         {filtered.length ? (
           <ul className="detail-list">
@@ -242,6 +294,7 @@ export default function App() {
       <Layout>
         <TopControls />
         <Breadcrumb />
+        <ThemeBubbles current={screen} />
         <h2>{prettySecond(screen, subscreen)}</h2>
         <div className="features-container big">
           {subtopics.map((feat, i) => (
@@ -272,6 +325,7 @@ export default function App() {
           <ThemeInfo which="cognitive" />
         </div>
         <p>Choose a subtheme to explore features and recommendations.</p>
+        <ThemeBubbles current={screen} />
         <div className="subtheme-grid">
           {Object.keys(dataMap.cognitive).map((k) => (
             <button key={k} className="subtheme-btn cognitive" onClick={() => setSubscreen(k)}>
@@ -294,6 +348,7 @@ export default function App() {
           <ThemeInfo which={screen} />
         </div>
         <p>Choose a subtheme to explore features and recommendations.</p>
+        <ThemeBubbles current={screen} />
         <div className="subtheme-grid">
           {Object.keys(dataMap[screen]).map((k) => (
             <button key={k} className={`subtheme-btn ${screen}`} onClick={() => setSubscreen(k)}>

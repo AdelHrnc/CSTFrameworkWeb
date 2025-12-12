@@ -96,6 +96,11 @@ html, body, #root {
   opacity: 0.9;
 }
 
+.container h2,
+.title-row {
+  margin-top: 1.4rem;
+}
+
 .home-container {
   display: flex;
   flex-direction: column;
@@ -220,7 +225,7 @@ html, body, #root {
 /* === TOP CONTROLS === */
 .top-right-controls {
   position: fixed;
-  top: 20px;
+  top: 35px;
   right: 20px;
   display: flex;
   gap: 10px;
@@ -255,6 +260,160 @@ html, body, #root {
 .breadcrumb .crumb { color: #777; }
 .breadcrumb .crumb.active { color: var(--theme); }
 .breadcrumb .crumb-sep { color: #bcbcbc; }
+
+/* === THEME BUBBLES (quick jump to other themes) === */
+.theme-bubbles {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 1rem;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.theme-bubble {
+  position: relative;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-direction: row;
+  gap: 0;
+  width: 74px;
+  max-height: 74px;
+  padding: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: transparent;
+  transition: width 0.28s ease, max-height 0.28s ease, border-radius 0.28s ease, background 0.28s ease, box-shadow 0.28s ease, padding 0.28s ease;
+}
+.theme-bubble.open {
+  width: 360px;
+  max-height: 420px;
+  padding: 12px;
+  border-radius: 22px;
+  background: rgba(255,255,255,0.96);
+  box-shadow: var(--shadow);
+  gap: 14px;
+  align-items: center;
+}
+.theme-bubble.left { flex-direction: row; }
+.theme-bubble.right { flex-direction: row-reverse; }
+.bubble-pill {
+  border: none;
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.12);
+  transition: transform 0.18s ease, filter 0.18s ease, width 0.25s ease, height 0.25s ease, border-radius 0.25s ease, padding 0.25s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: transparent;
+  padding: 0;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+  text-align: left;
+  font-weight: 800;
+  font-size: 1rem;
+}
+.bubble-pill:hover { transform: translateY(-2px); filter: brightness(1.05); }
+.theme-bubble.theme-cognitive .bubble-pill { background: linear-gradient(135deg, #3a8dfd, #2d76e0); }
+.theme-bubble.theme-socio .bubble-pill { background: linear-gradient(135deg, #a15dfc, #7d3cf0); }
+.theme-bubble.theme-physical .bubble-pill { background: linear-gradient(135deg, #ff914d, #ff7a1f); }
+
+.theme-bubble.open .bubble-pill {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  justify-content: center;
+  padding: 0;
+  transform: scale(1.02);
+  box-shadow: 0 16px 32px rgba(0,0,0,0.16);
+  color: transparent;
+}
+
+.bubble-label {
+  display: none !important;
+}
+
+.bubble-panel {
+  flex: 1 1 0;
+  position: relative;
+  width: auto;
+  padding: 0;
+  border-radius: 16px;
+  border: none;
+  box-shadow: none;
+  text-align: left;
+  background: transparent;
+  opacity: 0;
+  max-height: 0;
+  max-width: 0;
+  overflow: hidden;
+  margin-top: 0;
+  transform: translateY(6px);
+  transform-origin: top center;
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease, max-height 0.22s ease, max-width 0.22s ease, padding 0.18s ease;
+}
+.theme-bubble.open .bubble-panel {
+  opacity: 1;
+  max-height: 420px;
+  max-width: 100%;
+  padding: 0.5rem 0.6rem 0.65rem;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.switch-btn {
+  width: 100%;
+  border: 2px solid var(--theme);
+  background: var(--theme-soft);
+  color: var(--theme);
+  font-weight: 700;
+  border-radius: 12px;
+  padding: 0.65rem 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.switch-btn:hover { background: var(--theme); color: white; }
+
+.bubble-subthemes {
+  margin-top: 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.sub-link {
+  border: 1px solid #e7edff;
+  background: #f8faff;
+  padding: 0.55rem 0.7rem;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  font-weight: 600;
+  color: #222;
+  transition: all 0.18s ease;
+}
+.sub-link:hover { border-color: var(--theme); box-shadow: 0 6px 14px rgba(0,0,0,0.08); }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
+}
 
 /* === SIDEBAR BOOKMARK TOGGLER === */
 /* === FILTER POPUP === */
@@ -441,6 +600,7 @@ html, body, #root {
   }
 
   .home-btn { min-width: 150px; }
+  .theme-bubbles { display: none; }
 
   .subtheme-grid { grid-template-columns: 1fr; }
 

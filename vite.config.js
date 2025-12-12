@@ -3,6 +3,6 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  // Use relative paths so build works on GitHub Pages at /<repo>/
-  base: './',
+  // GitHub Pages served at https://<user>.github.io/CSTFrameworkWeb/
+  base: '/CSTFrameworkWeb/',
 })
